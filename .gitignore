@@ -35,3 +35,34 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- AWS / credentials (never commit) ---
+.aws/
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env/            # if you use python-dotenv folder style
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Terraform extras ---
+*.tfplan
+*.plan
+.terraform.lock.hcl.backup
+
