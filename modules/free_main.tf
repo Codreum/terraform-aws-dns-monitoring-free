@@ -8,9 +8,6 @@ variable "aws_region"    {
    type = string 
 }
 
-variable "product_code"  { 
-   type = string
- }
 
 variable "tags"          { 
    type = map(string) 
@@ -127,6 +124,7 @@ data "aws_route53_zone" "free_zone" {
 
 locals {
   free_zone_name = var.free_zone_id != null ? trimsuffix(data.aws_route53_zone.free_zone[0].name, ".") : null
+     product_code = "free"
 }
 
 locals {
@@ -137,17 +135,15 @@ locals {
 locals {
   dft_zone_nx_rate_threshold_pct = 10
   dft_vpc_nx_rate_threshold_pct  = 10
-
   eff_zone_rate_threshold_pct = coalesce(var.free_zone_nxdomain_rate_threshold_pct, local.dft_zone_nx_rate_threshold_pct)
   eff_vpc_rate_threshold_pct  = coalesce(var.free_vpc_nxdomain_rate_threshold_pct,  local.dft_vpc_nx_rate_threshold_pct)
 }
-# --- Anomaly sensible defaults ---
-locals {
-  dft_zone_anom_band_width     = 2.0   # common starting point; raise to 2.5 if too chatty
-  dft_vpc_anom_band_width      = 2.0
-  dft_zone_anom_eval_periods   = 3     # anomalies tend to benefit from >1 datapoint
-  dft_vpc_anom_eval_periods    = 3
 
+locals {
+  dft_zone_anom_band_width     = 2.0
+  dft_vpc_anom_band_width      = 2.0
+  dft_zone_anom_eval_periods   = 3
+  dft_vpc_anom_eval_periods    = 3
   eff_zone_anom_band_width     = coalesce(var.free_zone_anomaly_band_width,   local.dft_zone_anom_band_width)
   eff_vpc_anom_band_width      = coalesce(var.free_vpc_anomaly_band_width,    local.dft_vpc_anom_band_width)
   eff_zone_anom_eval_periods   = coalesce(var.free_zone_anomaly_eval_periods, local.dft_zone_anom_eval_periods)
@@ -157,28 +153,19 @@ locals {
 
 
 locals {
-  # Shared naming
   ns             = "Codreum/DNSCI"
-
-  # --- sane defaults (overridable by the variables above) ---
-  # Zone
   dft_zone_nxdomain_threshold    = 100
   dft_zone_nxdomain_alarm_period = 300
   dft_zone_nxdomain_eval_periods = 1
   dft_zone_topn_nxdomain         = 10
-
-  # VPC
   dft_vpc_nxdomain_threshold     = 200
   dft_vpc_nxdomain_alarm_period  = 300
   dft_vpc_nxdomain_eval_periods  = 1
   dft_vpc_topn_nxdomain          = 10
-
-  # Effective values (vars override locals)
   eff_zone_threshold     = coalesce(var.free_zone_nxdomain_threshold,     local.dft_zone_nxdomain_threshold)
   eff_zone_period        = coalesce(var.free_zone_nxdomain_alarm_period,  local.dft_zone_nxdomain_alarm_period)
   eff_zone_eval_periods  = coalesce(var.free_zone_nxdomain_eval_periods,  local.dft_zone_nxdomain_eval_periods)
   eff_zone_topn          = coalesce(var.free_zone_topn_nxdomain,          local.dft_zone_topn_nxdomain)
-
   eff_vpc_threshold      = coalesce(var.free_vpc_nxdomain_threshold,      local.dft_vpc_nxdomain_threshold)
   eff_vpc_period         = coalesce(var.free_vpc_nxdomain_alarm_period,   local.dft_vpc_nxdomain_alarm_period)
   eff_vpc_eval_periods   = coalesce(var.free_vpc_nxdomain_eval_periods,   local.dft_vpc_nxdomain_eval_periods)
@@ -186,32 +173,21 @@ locals {
 }
 
 locals {
-  # Gauge bands (tweak as you like)
   band_warn_ratio    = 0.70  # 70% of threshold → warning
   band_crit_ratio    = 1.00  # 100% of threshold → critical
-
-  # Zone gauge annotation values
   zone_warn_value    = local.eff_zone_threshold * local.band_warn_ratio
   zone_crit_value    = local.eff_zone_threshold * local.band_crit_ratio
-
-  # VPC gauge annotation values
   vpc_warn_value     = local.eff_vpc_threshold  * local.band_warn_ratio
   vpc_crit_value     = local.eff_vpc_threshold  * local.band_crit_ratio
 }
 
-
-#### ZONE #######
-
 resource "aws_cloudwatch_contributor_insight_rule" "zone_topn_nxdomain_qname" {
   count     = local.has_zone ? 1 : 0
-  rule_name  = "${var.prefix}-${var.product_code}-zone-${replace(local.free_zone_name,".","-")}-topn-nxdomain-qname"
-
+  rule_name  = "${var.prefix}-${local.product_code}-zone-${replace(local.free_zone_name,".","-")}-topn-nxdomain-qname"
   rule_definition = jsonencode({
     Schema        = { Name = "CloudWatchLogRule", Version = 1 }
     LogGroupNames = [var.free_log_group_name]
     LogFormat     = "CLF"
-
-    # Map CLF field positions to names you’ll use below
     Fields = {
       "1"  = "version"
       "2"  = "ts"
@@ -224,22 +200,20 @@ resource "aws_cloudwatch_contributor_insight_rule" "zone_topn_nxdomain_qname" {
       "9"  = "rip"
       "10" = "edns"
     }
-
     Contribution = {
       Keys = ["qname"]
       Filters = [
-        { "Match": "rcode",          "In": ["NXDOMAIN"] },          # string → In
-        { "Match": "hosted_zone_id", "In": [var.free_zone_id] }     # string → In
+        { "Match": "rcode",          "In": ["NXDOMAIN"] }, 
+        { "Match": "hosted_zone_id", "In": [var.free_zone_id] } 
       ]
     }
-
     AggregateOn = "Count"
   })
 }
 
 resource "aws_cloudwatch_contributor_insight_rule" "zone_topn_nxdomain_qtype" {
   count      = local.has_zone ? 1 : 0
-  rule_name  = "${var.prefix}-${var.product_code}-zone-${replace(local.free_zone_name,".","-")}-topn-nxdomain-qtype"
+  rule_name  = "${var.prefix}-${local.product_code}-zone-${replace(local.free_zone_name,".","-")}-topn-nxdomain-qtype"
   rule_definition = jsonencode({
     Schema        = { Name = "CloudWatchLogRule", Version = 1 }
     LogGroupNames = [var.free_log_group_name]
@@ -258,7 +232,7 @@ resource "aws_cloudwatch_contributor_insight_rule" "zone_topn_nxdomain_qtype" {
 
 resource "aws_cloudwatch_contributor_insight_rule" "zone_topn_nxdomain_edge" {
   count      = local.has_zone ? 1 : 0
-  rule_name  = "${var.prefix}-${var.product_code}-zone-${replace(local.free_zone_name,".","-")}-topn-nxdomain-edge"
+  rule_name  = "${var.prefix}-${local.product_code}-zone-${replace(local.free_zone_name,".","-")}-topn-nxdomain-edge"
   rule_definition = jsonencode({
     Schema        = { Name = "CloudWatchLogRule", Version = 1 }
     LogGroupNames = [var.free_log_group_name]
@@ -277,8 +251,7 @@ resource "aws_cloudwatch_contributor_insight_rule" "zone_topn_nxdomain_edge" {
 
 resource "aws_cloudwatch_contributor_insight_rule" "zone_topn_nxdomain_rip" {
   count      = local.has_zone ? 1 : 0
-  rule_name  = "${var.prefix}-${var.product_code}-zone-${replace(local.free_zone_name, ".", "-")}-topn-nxdomain-src"
-
+  rule_name  = "${var.prefix}-${local.product_code}-zone-${replace(local.free_zone_name, ".", "-")}-topn-nxdomain-src"
   rule_definition = jsonencode({
     Schema        = { Name = "CloudWatchLogRule", Version = 1 }
     LogGroupNames = [var.free_log_group_name]
@@ -306,19 +279,11 @@ resource "aws_cloudwatch_contributor_insight_rule" "zone_topn_nxdomain_rip" {
   })
 }
 
-
-
-
-# Count NXDOMAIN for this zone → custom metric
-# Example for hosted zone Z123ABCDEF (replace with your zone ID)
 resource "aws_cloudwatch_log_metric_filter" "zone_nxdomain_count" {
   count          = local.has_zone ? 1 : 0
-  name           = "${var.prefix}-${var.product_code}-zone-nxdomain-count"
+  name           = "${var.prefix}-${local.product_code}-zone-nxdomain-count"
   log_group_name = var.free_log_group_name
-
-  # public hosted zone logs (space-delimited)
   pattern = "[version, ts, hosted_zone_id=\"${var.free_zone_id}\", qname, qtype, rcode=\"NXDOMAIN\", proto, edge, rip, edns]"
-
   metric_transformation {
     namespace     = local.ns
     name          = "ZoneNXDOMAIN"
@@ -329,7 +294,7 @@ resource "aws_cloudwatch_log_metric_filter" "zone_nxdomain_count" {
 
 resource "aws_cloudwatch_log_metric_filter" "zone_total_count" {
   count          = local.has_zone ? 1 : 0
-  name           = "${var.prefix}-${var.product_code}-zone-total-count"
+  name           = "${var.prefix}-${local.product_code}-zone-total-count"
   log_group_name = var.free_log_group_name
   pattern        = "[version, ts, hosted_zone_id=\"${var.free_zone_id}\", qname, qtype, rcode, proto, edge, rip, edns]"
   metric_transformation {
@@ -340,44 +305,39 @@ resource "aws_cloudwatch_log_metric_filter" "zone_total_count" {
   }
 }
 
-
 resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_alarm" {
   count                = local.has_zone ? 1 : 0
-  alarm_name           = "${var.prefix}-${var.product_code}-zone-${local.free_zone_name}-nxdomain-alarm"
+  alarm_name           = "${var.prefix}-${local.product_code}-zone-${local.free_zone_name}-nxdomain-alarm"
   comparison_operator  = "GreaterThanOrEqualToThreshold"
   threshold            = local.eff_zone_threshold
   evaluation_periods   = local.eff_zone_eval_periods
   treat_missing_data   = "notBreaching"
-
   metric_query {
     id          = "m1"
     return_data = true
     metric {
       namespace   = local.ns
       metric_name = aws_cloudwatch_log_metric_filter.zone_nxdomain_count[0].metric_transformation[0].name  # "ZoneNXDOMAIN"
-      dimensions  = { ZoneId = var.free_zone_id }   # ✅ exact match
+      dimensions  = { ZoneId = var.free_zone_id } 
       stat        = "Sum"
-      period      = local.eff_zone_period           # e.g., 300
+      period      = local.eff_zone_period
     }
   }
-
   alarm_actions  = [var.dns_alert_sns_arn]
   ok_actions     = [var.dns_alert_sns_arn]
   alarm_description = "NXDOMAIN count for zone ${local.free_zone_name} exceeded threshold."
-
   depends_on = [aws_cloudwatch_log_metric_filter.zone_nxdomain_count]
-  tags = merge({ "codreum:type" = var.product_code, "codreum:prefix" = var.prefix, "codreum:subject" = "zone:${var.free_zone_id}" }, var.tags)
+  tags = merge({ "codreum:type" = local.product_code, "codreum:prefix" = var.prefix, "codreum:subject" = "zone:${var.free_zone_id}" }, var.tags)
 }
 
 resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_rate_alarm" {
   count               = local.has_zone ? 1 : 0
-  alarm_name          = "${var.prefix}-${var.product_code}-zone-${local.free_zone_name}-nxdomain-rate-pct-alarm"
+  alarm_name          = "${var.prefix}-${local.product_code}-zone-${local.free_zone_name}-nxdomain-rate-pct-alarm"
   comparison_operator = "GreaterThanOrEqualToThreshold"
-  threshold           = local.eff_zone_rate_threshold_pct    # %
+  threshold           = local.eff_zone_rate_threshold_pct
   evaluation_periods  = local.eff_zone_eval_periods
   treat_missing_data  = "notBreaching"
   alarm_description   = "NXDOMAIN rate (%) for zone ${local.free_zone_name} exceeded ${local.eff_zone_rate_threshold_pct}%."
-
   metric_query {
   id          = "m_nx"
   return_data = false
@@ -418,25 +378,21 @@ metric_query {
   ]
 
   tags = merge({
-    "codreum:type"    = var.product_code,
+    "codreum:type"    = local.product_code,
     "codreum:prefix"  = var.prefix,
     "codreum:subject" = "zone:${var.free_zone_id}"
   }, var.tags)
 }
 
-
-# ========= ZONE COUNT ANOMALY =========
 resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_anomaly" {
   count               = local.has_zone ? 1 : 0
-  alarm_name          = "${var.prefix}-${var.product_code}-zone-${local.free_zone_name}-nxdomain-anomaly"
+  alarm_name          = "${var.prefix}-${local.product_code}-zone-${local.free_zone_name}-nxdomain-anomaly"
   comparison_operator = "GreaterThanUpperThreshold"
   evaluation_periods  = local.eff_zone_anom_eval_periods
   treat_missing_data  = "notBreaching"
   alarm_description   = "Anomaly detection on Zone NXDOMAIN count."
   alarm_actions       = [var.dns_alert_sns_arn]
   ok_actions          = [var.dns_alert_sns_arn]
-
-  # Primary metric MUST return data
   metric_query {
     id          = "m1"
     return_data = true
@@ -448,8 +404,6 @@ resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_anomaly" {
       period      = local.eff_zone_period
     }
   }
-
-  # Anomaly band MUST return data and match threshold_metric_id
   metric_query {
     id          = "ad1"
     expression  = "ANOMALY_DETECTION_BAND(m1, ${tostring(local.eff_zone_anom_band_width)})"
@@ -460,10 +414,10 @@ resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_anomaly" {
   threshold_metric_id = "ad1"
 }
 
-# ========= ZONE RATE (%) ANOMALY =========
+
 resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_rate_anomaly" {
   count               = local.has_zone ? 1 : 0
-  alarm_name          = "${var.prefix}-${var.product_code}-zone-${local.free_zone_name}-nxdomain-rate-pct-anomaly"
+  alarm_name          = "${var.prefix}-${local.product_code}-zone-${local.free_zone_name}-nxdomain-rate-pct-anomaly"
   comparison_operator = "GreaterThanUpperThreshold"
   evaluation_periods  = local.eff_zone_anom_eval_periods
   treat_missing_data  = "notBreaching"
@@ -471,7 +425,6 @@ resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_rate_anomaly" {
   alarm_actions       = [var.dns_alert_sns_arn]
   ok_actions          = [var.dns_alert_sns_arn]
 
-  # Source metrics (no return data)
   metric_query {
     id          = "m_nx"
     return_data = false
@@ -494,16 +447,12 @@ resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_rate_anomaly" {
       period      = local.eff_zone_period
     }
   }
-
-  # Primary expression MUST return data
   metric_query {
     id          = "e_pct"
     expression  = "IF(m_total > 0, 100 * m_nx / m_total, 0)"
     label       = "NXDOMAIN %"
     return_data = true
   }
-
-  # Anomaly band MUST return data and match threshold_metric_id
   metric_query {
     id          = "ad1"
     expression  = "ANOMALY_DETECTION_BAND(e_pct, ${tostring(local.eff_zone_anom_band_width)})"
@@ -514,14 +463,9 @@ resource "aws_cloudwatch_metric_alarm" "zone_nxdomain_rate_anomaly" {
   threshold_metric_id = "ad1"
 }
 
-
-
-### VPC ###
-
-# Only when a VPC is provided
 resource "aws_cloudwatch_contributor_insight_rule" "vpc_topn_nxdomain_qname" {
   count     = local.has_vpc ? 1 : 0
-  rule_name  = "${var.prefix}-${var.product_code}-vpc-${var.free_vpc_id}-topn-nxdomain-qname"
+  rule_name  = "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}-topn-nxdomain-qname"
 
   rule_definition = jsonencode({
     Schema = { Name = "CloudWatchLogRule", Version = 1 }
@@ -540,7 +484,7 @@ resource "aws_cloudwatch_contributor_insight_rule" "vpc_topn_nxdomain_qname" {
 
 resource "aws_cloudwatch_contributor_insight_rule" "vpc_topn_nxdomain_srcip" {
   count      = local.has_vpc ? 1 : 0
-  rule_name  = "${var.prefix}-${var.product_code}-vpc-${var.free_vpc_id}-topn-nxdomain-src"
+  rule_name  = "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}-topn-nxdomain-src"
   rule_definition = jsonencode({
     Schema        = { Name = "CloudWatchLogRule", Version = 1 }
     LogGroupNames = [var.free_log_group_name]
@@ -548,7 +492,7 @@ resource "aws_cloudwatch_contributor_insight_rule" "vpc_topn_nxdomain_srcip" {
     Contribution  = {
       Keys   = ["$.srcaddr"]
       Filters = [
-        { Match = "$.vpc_id", In = [var.free_vpc_id] },   # was $.vpcId
+        { Match = "$.vpc_id", In = [var.free_vpc_id] },
         { Match = "$.rcode",  In = ["NXDOMAIN"] }  
       ]
     }
@@ -556,13 +500,9 @@ resource "aws_cloudwatch_contributor_insight_rule" "vpc_topn_nxdomain_srcip" {
   })
 }
 
-
-
-
-# Count NXDOMAIN for this VPC → custom metric
 resource "aws_cloudwatch_log_metric_filter" "vpc_nxdomain_count" { 
    count = local.has_vpc ? 1 : 0 
-   name = "${var.prefix}-${var.product_code}-vpc-nxdomain-count" 
+   name = "${var.prefix}-${local.product_code}-vpc-nxdomain-count" 
    log_group_name = var.free_log_group_name  
   pattern = "{ ($.rcode = \"NXDOMAIN\") && ($.vpc_id = \"${var.free_vpc_id}\") }"
   metric_transformation {
@@ -576,7 +516,7 @@ resource "aws_cloudwatch_log_metric_filter" "vpc_nxdomain_count" {
 
 resource "aws_cloudwatch_log_metric_filter" "vpc_total_count" { 
    count = local.has_vpc ? 1 : 0 
-   name = "${var.prefix}-${var.product_code}-vpc-total-count"
+   name = "${var.prefix}-${local.product_code}-vpc-total-count"
    log_group_name = var.free_log_group_name
   pattern = "{ $.vpc_id = \"${var.free_vpc_id}\" }"
   metric_transformation {
@@ -589,7 +529,7 @@ resource "aws_cloudwatch_log_metric_filter" "vpc_total_count" {
 
 resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_alarm" {
   count                = local.has_vpc ? 1 : 0
-  alarm_name           = "${var.prefix}-${var.product_code}-vpc-${var.free_vpc_id}-nxdomain-alarm"
+  alarm_name           = "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}-nxdomain-alarm"
   comparison_operator  = "GreaterThanOrEqualToThreshold"
   threshold            = local.eff_vpc_threshold
   evaluation_periods   = local.eff_vpc_eval_periods
@@ -601,9 +541,9 @@ resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_alarm" {
     metric {
       namespace   = local.ns
       metric_name = aws_cloudwatch_log_metric_filter.vpc_nxdomain_count[0].metric_transformation[0].name  # "VpcNXDOMAIN"
-      dimensions  = { VpcId = var.free_vpc_id }     # ✅ matches dashboard widget
+      dimensions  = { VpcId = var.free_vpc_id }
       stat        = "Sum"
-      period      = local.eff_vpc_period            # e.g., 300
+      period      = local.eff_vpc_period 
     }
   }
 
@@ -612,13 +552,13 @@ resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_alarm" {
   alarm_description = "NXDOMAIN count for VPC ${var.free_vpc_id} exceeded threshold."
 
   depends_on = [aws_cloudwatch_log_metric_filter.vpc_nxdomain_count]
-  tags = merge({ "codreum:type" = var.product_code, "codreum:prefix" = var.prefix, "codreum:subject" = "vpc:${var.free_vpc_id}" }, var.tags)
+  tags = merge({ "codreum:type" = local.product_code, "codreum:prefix" = var.prefix, "codreum:subject" = "vpc:${var.free_vpc_id}" }, var.tags)
 }
 
 
 resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_rate_alarm" {
   count               = local.has_vpc ? 1 : 0
-  alarm_name          = "${var.prefix}-${var.product_code}-vpc-${var.free_vpc_id}-nxdomain-rate-pct-alarm"
+  alarm_name          = "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}-nxdomain-rate-pct-alarm"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   threshold           = local.eff_vpc_rate_threshold_pct
   evaluation_periods  = local.eff_vpc_eval_periods
@@ -665,19 +605,15 @@ metric_query {
   ]
 
   tags = merge({
-    "codreum:type"    = var.product_code,
+    "codreum:type"    = local.product_code,
     "codreum:prefix"  = var.prefix,
     "codreum:subject" = "vpc:${var.free_vpc_id}"
   }, var.tags)
 }
 
-
-
-#### VPC Anomaly####
-# ========= VPC COUNT ANOMALY =========
 resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_anomaly" {
   count               = local.has_vpc ? 1 : 0
-  alarm_name          = "${var.prefix}-${var.product_code}-vpc-${var.free_vpc_id}-nxdomain-anomaly"
+  alarm_name          = "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}-nxdomain-anomaly"
   comparison_operator = "GreaterThanUpperThreshold"
   evaluation_periods  = local.eff_vpc_anom_eval_periods
   treat_missing_data  = "notBreaching"
@@ -707,18 +643,15 @@ resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_anomaly" {
   threshold_metric_id = "ad1"
 }
 
-# ========= VPC RATE (%) ANOMALY =========
 resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_rate_anomaly" {
   count               = local.has_vpc ? 1 : 0
-  alarm_name          = "${var.prefix}-${var.product_code}-vpc-${var.free_vpc_id}-nxdomain-rate-pct-anomaly"
+  alarm_name          = "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}-nxdomain-rate-pct-anomaly"
   comparison_operator = "GreaterThanUpperThreshold"
   evaluation_periods  = local.eff_vpc_anom_eval_periods
   treat_missing_data  = "notBreaching"
   alarm_description   = "Anomaly detection on VPC NXDOMAIN rate (%)."
   alarm_actions       = [var.dns_alert_sns_arn]
   ok_actions          = [var.dns_alert_sns_arn]
-
-  # Source metrics (no return data)
   metric_query {
     id          = "m_nx"
     return_data = false
@@ -742,7 +675,6 @@ resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_rate_anomaly" {
     }
   }
 
-  # Primary expression MUST return data
   metric_query {
     id          = "e_pct"
     expression  = "IF(m_total > 0, 100 * m_nx / m_total, 0)"
@@ -750,7 +682,6 @@ resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_rate_anomaly" {
     return_data = true
   }
 
-  # Anomaly band MUST return data and match threshold_metric_id
   metric_query {
     id          = "ad1"
     expression  = "ANOMALY_DETECTION_BAND(e_pct, ${tostring(local.eff_vpc_anom_band_width)})"
@@ -760,15 +691,10 @@ resource "aws_cloudwatch_metric_alarm" "vpc_nxdomain_rate_anomaly" {
 
   threshold_metric_id = "ad1"
 }
-#######################################
-## Dashboard##############################
-#########################################
-# -------------------------------
-# ZONE DASHBOARD (fixed)
-# -------------------------------
+
 resource "aws_cloudwatch_dashboard" "zone_dns_dashboard" {
   count          = local.has_zone ? 1 : 0
-  dashboard_name = "${var.prefix}-${var.product_code}-zone-${replace(local.free_zone_name, ".", "-")}"
+  dashboard_name = "${var.prefix}-${local.product_code}-zone-${replace(local.free_zone_name, ".", "-")}"
 
   dashboard_body = jsonencode({
     start          = "-PT3H"
@@ -972,28 +898,39 @@ resource "aws_cloudwatch_dashboard" "zone_dns_dashboard" {
         }
       },
 
-      {
-        "type": "metric",
-        "x": 0, "y": 36, "width": 24, "height": 7,
-        "properties": {
-          "title": "NXDOMAIN Count — Time Series",
-          "view": "timeSeries",
-          "stat": "Sum",
-          "region": "${var.aws_region}",
-          "period": local.eff_zone_period,
-          "metrics": [
-            [ local.ns, "ZoneNXDOMAIN", "ZoneId", var.free_zone_id ]
-          ],
-          "annotations": {
-            "horizontal": [
-              {
-                "label": "Threshold",
-                "value": local.eff_zone_threshold
-              }
-            ]
-          }
+{
+  "type": "metric",
+  "x": 0, "y": 36, "width": 24, "height": 7,
+  "properties": {
+    "title": "NXDOMAIN Count — Time Series",
+    "view": "timeSeries",
+    "stat": "Sum",
+    "region": "${var.aws_region}",
+    "period": local.eff_zone_period,
+    "metrics": [
+      [
+        {
+          "expression": "FILL(m1, 0)",
+          "label": "ZoneNXDOMAIN (filled)",
+          "id": "e1",
+          "region": "${var.aws_region}"
         }
-      },
+      ],
+      [
+        local.ns, "ZoneNXDOMAIN", "ZoneId", var.free_zone_id,
+        { "id": "m1", "stat": "Sum", "visible": false }
+      ]
+    ],
+    "annotations": {
+      "horizontal": [
+        {
+          "label": "Threshold",
+          "value": local.eff_zone_threshold
+        }
+      ]
+    }
+  }
+},
 
       {
         "type": "metric",
@@ -1053,12 +990,9 @@ resource "aws_cloudwatch_dashboard" "zone_dns_dashboard" {
   })
 }
 
-# -------------------------------
-# VPC DASHBOARD (fixed)
-# -------------------------------
 resource "aws_cloudwatch_dashboard" "vpc_dns_dashboard" {
   count          = local.has_vpc ? 1 : 0
-  dashboard_name = "${var.prefix}-${var.product_code}-vpc-${var.free_vpc_id}"
+  dashboard_name = "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}"
 
   dashboard_body = jsonencode({
     start          = "-PT3H"
@@ -1214,28 +1148,40 @@ resource "aws_cloudwatch_dashboard" "vpc_dns_dashboard" {
         }
       },
 
-      {
-        "type": "metric",
-        "x": 0, "y": 20, "width": 24, "height": 8,
-        "properties": {
-          "title": "NXDOMAIN Count — Time Series",
-          "view": "timeSeries",
-          "stat": "Sum",
-          "region": "${var.aws_region}",
-          "period": local.eff_vpc_period,
-          "metrics": [
-            [ local.ns, "VpcNXDOMAIN", "VpcId", var.free_vpc_id ]
-          ],
-          "annotations": {
-            "horizontal": [
-              {
-                "label": "Threshold",
-                "value": local.eff_vpc_threshold
-              }
-            ]
-          }
+{
+  "type": "metric",
+  "x": 0, "y": 20, "width": 24, "height": 8,
+  "properties": {
+    "title": "NXDOMAIN Count — Time Series",
+    "view": "timeSeries",
+    "stat": "Sum",
+    "region": "${var.aws_region}",
+    "period": local.eff_vpc_period,
+    "metrics": [
+      [
+        {
+          "expression": "FILL(m1, 0)",
+          "label": "VpcNXDOMAIN (filled)",
+          "id": "e1",
+          "region": "${var.aws_region}"
         }
-      },
+      ],
+      [
+        local.ns, "VpcNXDOMAIN", "VpcId", var.free_vpc_id,
+        { "id": "m1", "stat": "Sum", "visible": false }
+      ]
+    ],
+    "annotations": {
+      "horizontal": [
+        {
+          "label": "Threshold",
+          "value": local.eff_vpc_threshold
+        }
+      ]
+    }
+  }
+},
+
 
       {
         "type": "metric",
@@ -1339,11 +1285,8 @@ resource "aws_cloudwatch_dashboard" "vpc_dns_dashboard" {
   })
 }
 
-# -------------------------------
-# OPS LANDING (replacement)
-# -------------------------------
 resource "aws_cloudwatch_dashboard" "ops_dns_landing" {
-  dashboard_name = "${var.prefix}-${var.product_code}-dns-ops"
+  dashboard_name = "${var.prefix}-${local.product_code}-dns-ops"
 
   dashboard_body = jsonencode({
     start          = "-PT24H"
@@ -1356,14 +1299,14 @@ resource "aws_cloudwatch_dashboard" "ops_dns_landing" {
           "markdown": join("\n", [
             "## 🧭 DNS Ops — Landing",
             "",
-            "**Product:** `${var.product_code}`  •  **Prefix:** `${var.prefix}`  •  **Region:** `${var.aws_region}`",
+            "**Product:** `${local.product_code}`  •  **Prefix:** `${var.prefix}`  •  **Region:** `${var.aws_region}`",
             "",
             local.has_zone ?
             format(
               "- 🌐 **Zone Dashboard:** [%s](https://console.aws.amazon.com/cloudwatch/home?region=%s#dashboards:name=%s)",
               replace(local.free_zone_name, ".", "-"),
               var.aws_region,
-              format("%s-%s-zone-%s", var.prefix, var.product_code, replace(local.free_zone_name, ".", "-"))
+              format("%s-%s-zone-%s", var.prefix, local.product_code, replace(local.free_zone_name, ".", "-"))
             )
             :
             "- 🌐 **Zone Dashboard:** _not configured (set `free_zone_id`)_",
@@ -1372,7 +1315,7 @@ resource "aws_cloudwatch_dashboard" "ops_dns_landing" {
               "- 🏗️ **VPC Dashboard:** [%s](https://console.aws.amazon.com/cloudwatch/home?region=%s#dashboards:name=%s)",
               var.free_vpc_id,
               var.aws_region,
-              format("%s-%s-vpc-%s", var.prefix, var.product_code, var.free_vpc_id)
+              format("%s-%s-vpc-%s", var.prefix, local.product_code, var.free_vpc_id)
             )
             :
             "- 🏗️ **VPC Dashboard:** _not configured (set `free_vpc_id`)_",
