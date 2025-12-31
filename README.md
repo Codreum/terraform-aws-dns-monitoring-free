@@ -185,7 +185,9 @@ You’ll get an Ops landing page plus dashboards for the modes you enabled:
 - **Zone dashboard** (if `free_zone_id` is set): NXDOMAIN count, rate %, anomaly band, Top-N breakdowns
 - **VPC dashboard** (if `free_vpc_id` is set): NXDOMAIN count, rate %, anomaly band, Top-N by source/qname
 
-![Dashboards](./screenshot/dashboard3.jpg)(./screenshot/dashboard1.jpg)(./screenshot/dashboard2.jpg)
+![Dashboards](./screenshot/dashboard3.jpg)
+![Dashboards](./screenshot/dashboard1.jpg)
+![Dashboards](./screenshot/dashboard2.jpg)
 
 **How to use**
 - If alarms fire, start at **Ops landing**, then jump into **Zone/VPC** dashboard.
@@ -202,7 +204,9 @@ This module creates alarms for:
 
 Alarms publish to your SNS topic (`dns_alert_sns_arn`).
 
-![Alarms](./screenshot/alarm.jpg)(./screenshot/alarm2.jpg)(./screenshot/email_alert.jpg)
+![Alarms](./screenshot/alarm.jpg)
+![Alarms](./screenshot/alarm2.jpg)
+![Alarms](./screenshot/email_alert.jpg)
 
 **What to check**
 - **Count alarm**: sudden volume spike (often broken deploy / client loop)
@@ -217,7 +221,8 @@ Contributor Insights rules are used for “Top-N” analysis (fast triage):
 - Zone: top NXDOMAIN by **qname / qtype / edge / source**
 - VPC: top NXDOMAIN by **qname / source**
 
-![Contributor Insights](./screenshot/CI1.jpg)(./screenshot/CI2.jpg)
+![Contributor Insights](./screenshot/CI1.jpg)
+![Contributor Insights](./screenshot/CI2.jpg)
 
 **How to use**
 - Open **CloudWatch → Contributor Insights**
