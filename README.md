@@ -173,6 +173,58 @@ terraform apply
 
 ## What you’ll see after deploy
 
+After `terraform apply`, you’ll have CloudWatch **dashboards**, **alarms**, and **Contributor Insights** rules created in your AWS account.
+
+> Tip: Open **CloudWatch → Dashboards** and search for your `prefix` (e.g., `acme-dev-free-*`).
+
+### 1) Dashboards (Ops / Zone / VPC)
+
+You’ll get an Ops landing page plus dashboards for the modes you enabled:
+
+- **Ops landing**: quick links + “what to check first”
+- **Zone dashboard** (if `free_zone_id` is set): NXDOMAIN count, rate %, anomaly band, Top-N breakdowns
+- **VPC dashboard** (if `free_vpc_id` is set): NXDOMAIN count, rate %, anomaly band, Top-N by source/qname
+
+![Dashboards](./screenshot/dashboard3.jpg)(./screenshot/dashboard1.jpg)(./screenshot/dashboard2.jpg)
+
+**How to use**
+- If alarms fire, start at **Ops landing**, then jump into **Zone/VPC** dashboard.
+- Use **Top-N** tables to identify the top failing domains, qtype, edge, and source IPs.
+
+---
+
+### 2) Alarms (Count / Rate / Anomaly)
+
+This module creates alarms for:
+- **NXDOMAIN count** (static threshold)
+- **NXDOMAIN rate (%)** (error rate)
+- **Anomaly detection** on both count and rate
+
+Alarms publish to your SNS topic (`dns_alert_sns_arn`).
+
+![Alarms](./screenshot/alarm.jpg)(./screenshot/alarm2.jpg)(./screenshot/email_alert.jpg)
+
+**What to check**
+- **Count alarm**: sudden volume spike (often broken deploy / client loop)
+- **Rate alarm**: NXDOMAIN becoming a larger share of total queries
+- **Anomaly alarms**: unexpected behavior even if below static thresholds
+
+---
+
+### 3) Contributor Insights (Top-N triage)
+
+Contributor Insights rules are used for “Top-N” analysis (fast triage):
+- Zone: top NXDOMAIN by **qname / qtype / edge / source**
+- VPC: top NXDOMAIN by **qname / source**
+
+![Contributor Insights](./screenshot/CI1.jpg)(./screenshot/CI2.jpg)
+
+**How to use**
+- Open **CloudWatch → Contributor Insights**
+- Filter by your `prefix`
+- Start with **Top qname** and **Top source** to quickly locate the cause
+
+
 
 ## Upgrade to Codreum Pro
 

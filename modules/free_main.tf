@@ -1169,52 +1169,214 @@ resource "aws_cloudwatch_dashboard" "vpc_dns_dashboard" {
     ]
   })
 }
+# -------------------------------------------------------------------
+# Ops landing dashboard (Free: NXDOMAIN)
+# -------------------------------------------------------------------
+locals {
+  ops_dash_name = "${var.prefix}-${local.product_code}-dns-ops"
+
+  zone_dash_name = local.has_zone ? "${var.prefix}-${local.product_code}-zone-${replace(local.free_zone_name, ".", "-")}" : null
+  vpc_dash_name  = local.has_vpc  ? "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}" : null
+
+  ops_dash_url  = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.ops_dash_name}"
+  zone_dash_url = local.has_zone ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.zone_dash_name}" : null
+  vpc_dash_url  = local.has_vpc  ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.vpc_dash_name}" : null
+
+  # Collect alarm ARNs (safe in concat context)
+  ops_alarm_arns = concat(
+    local.has_zone ? [
+      aws_cloudwatch_metric_alarm.zone_nxdomain_alarm[0].arn,
+      aws_cloudwatch_metric_alarm.zone_nxdomain_rate_alarm[0].arn,
+      aws_cloudwatch_metric_alarm.zone_nxdomain_anomaly[0].arn,
+      aws_cloudwatch_metric_alarm.zone_nxdomain_rate_anomaly[0].arn,
+    ] : [],
+    local.has_vpc ? [
+      aws_cloudwatch_metric_alarm.vpc_nxdomain_alarm[0].arn,
+      aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_alarm[0].arn,
+      aws_cloudwatch_metric_alarm.vpc_nxdomain_anomaly[0].arn,
+      aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_anomaly[0].arn,
+    ] : []
+  )
+
+  # Alarm widget (0 or 1), built via null+filter to avoid conditional type errors
+  ops_alarm_widgets = [
+    for w in [
+      length(local.ops_alarm_arns) > 0 ? {
+        type   = "alarm"
+        x      = 0
+        y      = 8
+        width  = 24
+        height = 6
+        properties = {
+          title  = "Alarm status (all enabled scopes)"
+          alarms = local.ops_alarm_arns
+        }
+      } : null
+    ] : w if w != null
+  ]
+
+  # Zone widgets (0 or 2)
+  zone_widgets = [
+    for w in [
+      local.has_zone ? {
+        type   = "metric"
+        x      = 0
+        y      = 14
+        width  = 12
+        height = 6
+        properties = {
+          title  = "Zone NXDOMAIN (count)"
+          view   = "timeSeries"
+          region = var.aws_region
+          stat   = "Sum"
+          period = local.eff_zone_period
+          metrics = [
+            [ local.ns, "ZoneNXDOMAIN", "ZoneId", var.free_zone_id ]
+          ]
+        }
+      } : null,
+
+      local.has_zone ? {
+        type   = "metric"
+        x      = 0
+        y      = 20
+        width  = 12
+        height = 6
+        properties = {
+          title  = "Zone NXDOMAIN %"
+          view   = "timeSeries"
+          region = var.aws_region
+          stat   = "Average"
+          period = local.eff_zone_period
+          metrics = [
+            [ { expression = "IF(m_total > 0, 100 * m_nx / m_total, 0)", label = "%", id = "e1" } ],
+            [ local.ns, "ZoneNXDOMAIN", "ZoneId", var.free_zone_id, { id = "m_nx", stat = "Sum", visible = false } ],
+            [ local.ns, "ZoneTotal",    "ZoneId", var.free_zone_id, { id = "m_total", stat = "Sum", visible = false } ],
+          ]
+        }
+      } : null
+    ] : w if w != null
+  ]
+
+  # VPC widgets (0 or 2)
+  vpc_widgets = [
+    for w in [
+      local.has_vpc ? {
+        type   = "metric"
+        x      = 12
+        y      = 14
+        width  = 12
+        height = 6
+        properties = {
+          title  = "VPC NXDOMAIN (count)"
+          view   = "timeSeries"
+          region = var.aws_region
+          stat   = "Sum"
+          period = local.eff_vpc_period
+          metrics = [
+            [ local.ns, "VpcNXDOMAIN", "VpcId", var.free_vpc_id ]
+          ]
+        }
+      } : null,
+
+      local.has_vpc ? {
+        type   = "metric"
+        x      = 12
+        y      = 20
+        width  = 12
+        height = 6
+        properties = {
+          title  = "VPC NXDOMAIN %"
+          view   = "timeSeries"
+          region = var.aws_region
+          stat   = "Average"
+          period = local.eff_vpc_period
+          metrics = [
+            [ { expression = "IF(m_total > 0, 100 * m_nx / m_total, 0)", label = "%", id = "e1" } ],
+            [ local.ns, "VpcNXDOMAIN", "VpcId", var.free_vpc_id, { id = "m_nx", stat = "Sum", visible = false } ],
+            [ local.ns, "VpcTotal",    "VpcId", var.free_vpc_id, { id = "m_total", stat = "Sum", visible = false } ],
+          ]
+        }
+      } : null
+    ] : w if w != null
+  ]
+}
 
 resource "aws_cloudwatch_dashboard" "ops_dns_landing" {
-  dashboard_name = "${var.prefix}-${local.product_code}-dns-ops"
+  dashboard_name = local.ops_dash_name
 
   dashboard_body = jsonencode({
     start          = "-PT24H"
     periodOverride = "inherit"
-    widgets = [
-      {
-        "type": "text",
-        "x": 0, "y": 0, "width": 24, "height": 7,
-        "properties": {
-          "markdown": join("\n", [
-            "## 🧭 DNS Ops — Landing",
-            "",
-            "**Product:** `${local.product_code}`  •  **Prefix:** `${var.prefix}`  •  **Region:** `${var.aws_region}`",
-            "",
-            local.has_zone ?
-            format(
-              "- 🌐 **Zone Dashboard:** [%s](https://console.aws.amazon.com/cloudwatch/home?region=%s#dashboards:name=%s)",
-              replace(local.free_zone_name, ".", "-"),
-              var.aws_region,
-              format("%s-%s-zone-%s", var.prefix, local.product_code, replace(local.free_zone_name, ".", "-"))
-            )
-            :
-            "- 🌐 **Zone Dashboard:** _not configured (set `free_zone_id`)_",
-            local.has_vpc ?
-            format(
-              "- 🏗️ **VPC Dashboard:** [%s](https://console.aws.amazon.com/cloudwatch/home?region=%s#dashboards:name=%s)",
-              var.free_vpc_id,
-              var.aws_region,
-              format("%s-%s-vpc-%s", var.prefix, local.product_code, var.free_vpc_id)
-            )
-            :
-            "- 🏗️ **VPC Dashboard:** _not configured (set `free_vpc_id`)_",
-            "",
-            "---",
-            "### Quick Tips",
-            "- Alarms fire on NXDOMAIN **count**, **rate (%)**, and **anomalies** for both.",
-            "- Zone uses CLF logs (hosted_zone_id/qname), VPC uses JSON logs (vpcId/queryName).",
-            "- Use Top-QTYPE/Edge (Zone) and Top-SourceIP (VPC) for triage."
-          ])
+
+    widgets = concat(
+      [
+        {
+          type   = "text"
+          x      = 0
+          y      = 0
+          width  = 24
+          height = 8
+          properties = {
+            markdown = join("\n", compact([
+              "## 🧭 DNS Ops — Landing (Free: NXDOMAIN)",
+              "",
+              format(
+                "**Product:** `%s`  •  **Prefix:** `%s`  •  **Region:** `%s`  •  **Namespace:** `%s`",
+                local.product_code,
+                var.prefix,
+                var.aws_region,
+                local.ns
+              ),
+              "",
+              "### Enabled scopes",
+              local.has_zone ? format("- ✅ **Zone**: `%s` (%s)", var.free_zone_id, local.free_zone_name) : "- ⛔ **Zone**: not configured (set `free_zone_id`)",
+              local.has_vpc  ? format("- ✅ **VPC**: `%s`", var.free_vpc_id) : "- ⛔ **VPC**: not configured (set `free_vpc_id`)",
+              "",
+              "### Dashboards",
+              local.has_zone ? format("- 🌐 **Zone Dashboard:** [%s](%s)", replace(local.free_zone_name, ".", "-"), local.zone_dash_url) : "- 🌐 **Zone Dashboard:** _not configured_",
+              local.has_vpc  ? format("- 🏗️ **VPC Dashboard:** [%s](%s)", var.free_vpc_id, local.vpc_dash_url) : "- 🏗️ **VPC Dashboard:** _not configured_",
+              format("- 🧭 **Ops Landing:** [dns-ops](%s)", local.ops_dash_url),
+              "",
+              "---",
+              "### Fast triage (when an alarm fires)",
+              "1) Identify scope: **Zone** vs **VPC**",
+              "2) Identify alarm type: **Count**, **Rate (%)**, or **Anomaly**",
+              "3) Open the matching dashboard and use **Top-N** tables to find offender(s)",
+            ]))
+          }
         }
-      }
-    ]
+      ],
+      local.ops_alarm_widgets,
+      local.zone_widgets,
+      local.vpc_widgets,
+      [
+        {
+          type   = "text"
+          x      = 0
+          y      = 26
+          width  = 24
+          height = 10
+          properties = {
+            markdown = join("\n", [
+              "### How to interpret alarm types",
+              "- **Count**: absolute NXDOMAIN volume spike (loops / noisy clients / misconfig)",
+              "- **Rate (%)**: NXDOMAIN share of total traffic rising (systemic change/regression)",
+              "- **Anomaly**: unusual pattern even if static threshold isn’t crossed",
+              "",
+              "### What to look at inside dashboards",
+              "- **Top NXDOMAIN by domain (qname/query_name)** → which names fail most",
+              "- **Top NXDOMAIN by source IP (rip/srcaddr)** → which clients generate failures",
+              "- **Zone-only:** **Top QTYPE** and **Top Edge** to spot query-pattern issues",
+              "",
+              "### Log format assumptions (matches this module)",
+              "- **Zone**: CLF logs with `hosted_zone_id`, `qname`, `qtype`, `rcode`, `edge`, `rip`",
+              "- **VPC**: JSON logs with `vpc_id`, `srcaddr`, `query_name`, `rcode`",
+            ])
+          }
+        }
+      ]
+    )
   })
 }
-
 
