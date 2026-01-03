@@ -35,9 +35,9 @@ jobs:
       fail-fast: false
       matrix:
         dir:
-          - examples/both-zone-vpc
-          - examples/zone-only
-          - examples/vpc-only
+          - example/both-zone-vpc
+          - example/zone-only
+          - example/vpc-only
 
     steps:
       - name: Checkout
@@ -46,7 +46,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.7.0"
+          terraform_version: "1.14.0"
           terraform_wrapper: false
 
       - name: Terraform init (no backend)
