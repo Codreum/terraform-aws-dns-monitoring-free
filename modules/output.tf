@@ -12,14 +12,14 @@ output "enabled" {
 output "dashboards" {
   description = "CloudWatch dashboard names and console URLs."
   value = {
-    ops_name  = aws_cloudwatch_dashboard.ops_dns_landing.dashboard_name
-    ops_url   = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.ops_dns_landing.dashboard_name}"
+    ops_name = aws_cloudwatch_dashboard.ops_dns_landing.dashboard_name
+    ops_url  = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.ops_dns_landing.dashboard_name}"
 
     zone_name = local.has_zone ? aws_cloudwatch_dashboard.zone_dns_dashboard[0].dashboard_name : null
     zone_url  = local.has_zone ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.zone_dns_dashboard[0].dashboard_name}" : null
 
-    vpc_name  = local.has_vpc ? aws_cloudwatch_dashboard.vpc_dns_dashboard[0].dashboard_name : null
-    vpc_url   = local.has_vpc ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.vpc_dns_dashboard[0].dashboard_name}" : null
+    vpc_name = local.has_vpc ? aws_cloudwatch_dashboard.vpc_dns_dashboard[0].dashboard_name : null
+    vpc_url  = local.has_vpc ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.vpc_dns_dashboard[0].dashboard_name}" : null
   }
 }
 
@@ -30,31 +30,31 @@ output "alarms" {
   description = "Alarm names and ARNs for integrating with other systems."
   value = {
     zone = local.has_zone ? {
-      nxdomain_static_name      = aws_cloudwatch_metric_alarm.zone_nxdomain_alarm[0].alarm_name
-      nxdomain_static_arn       = aws_cloudwatch_metric_alarm.zone_nxdomain_alarm[0].arn
+      nxdomain_static_name = aws_cloudwatch_metric_alarm.zone_nxdomain_alarm[0].alarm_name
+      nxdomain_static_arn  = aws_cloudwatch_metric_alarm.zone_nxdomain_alarm[0].arn
 
-      nxdomain_rate_name        = aws_cloudwatch_metric_alarm.zone_nxdomain_rate_alarm[0].alarm_name
-      nxdomain_rate_arn         = aws_cloudwatch_metric_alarm.zone_nxdomain_rate_alarm[0].arn
+      nxdomain_rate_name = aws_cloudwatch_metric_alarm.zone_nxdomain_rate_alarm[0].alarm_name
+      nxdomain_rate_arn  = aws_cloudwatch_metric_alarm.zone_nxdomain_rate_alarm[0].arn
 
-      nxdomain_anomaly_name     = aws_cloudwatch_metric_alarm.zone_nxdomain_anomaly[0].alarm_name
-      nxdomain_anomaly_arn      = aws_cloudwatch_metric_alarm.zone_nxdomain_anomaly[0].arn
+      nxdomain_anomaly_name = aws_cloudwatch_metric_alarm.zone_nxdomain_anomaly[0].alarm_name
+      nxdomain_anomaly_arn  = aws_cloudwatch_metric_alarm.zone_nxdomain_anomaly[0].arn
 
-      nxdomain_rate_anom_name   = aws_cloudwatch_metric_alarm.zone_nxdomain_rate_anomaly[0].alarm_name
-      nxdomain_rate_anom_arn    = aws_cloudwatch_metric_alarm.zone_nxdomain_rate_anomaly[0].arn
+      nxdomain_rate_anom_name = aws_cloudwatch_metric_alarm.zone_nxdomain_rate_anomaly[0].alarm_name
+      nxdomain_rate_anom_arn  = aws_cloudwatch_metric_alarm.zone_nxdomain_rate_anomaly[0].arn
     } : null
 
     vpc = local.has_vpc ? {
-      nxdomain_static_name      = aws_cloudwatch_metric_alarm.vpc_nxdomain_alarm[0].alarm_name
-      nxdomain_static_arn       = aws_cloudwatch_metric_alarm.vpc_nxdomain_alarm[0].arn
+      nxdomain_static_name = aws_cloudwatch_metric_alarm.vpc_nxdomain_alarm[0].alarm_name
+      nxdomain_static_arn  = aws_cloudwatch_metric_alarm.vpc_nxdomain_alarm[0].arn
 
-      nxdomain_rate_name        = aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_alarm[0].alarm_name
-      nxdomain_rate_arn         = aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_alarm[0].arn
+      nxdomain_rate_name = aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_alarm[0].alarm_name
+      nxdomain_rate_arn  = aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_alarm[0].arn
 
-      nxdomain_anomaly_name     = aws_cloudwatch_metric_alarm.vpc_nxdomain_anomaly[0].alarm_name
-      nxdomain_anomaly_arn      = aws_cloudwatch_metric_alarm.vpc_nxdomain_anomaly[0].arn
+      nxdomain_anomaly_name = aws_cloudwatch_metric_alarm.vpc_nxdomain_anomaly[0].alarm_name
+      nxdomain_anomaly_arn  = aws_cloudwatch_metric_alarm.vpc_nxdomain_anomaly[0].arn
 
-      nxdomain_rate_anom_name   = aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_anomaly[0].alarm_name
-      nxdomain_rate_anom_arn    = aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_anomaly[0].arn
+      nxdomain_rate_anom_name = aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_anomaly[0].alarm_name
+      nxdomain_rate_anom_arn  = aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_anomaly[0].arn
     } : null
   }
 }
