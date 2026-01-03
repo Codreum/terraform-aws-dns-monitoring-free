@@ -1,0 +1,27 @@
+name: CI - TFLint
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tflint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.55.0
+
+      - name: Init TFLint plugins
+        run: tflint --init
+
+      - name: Run TFLint (repo)
+        run: tflint
