@@ -18,20 +18,20 @@ provider "aws" {
 module "dnsci" {
   source = "github.com/Codreum/terraform-aws-dns-monitoring-free/modules?ref=v0.1.0"
 
-  prefix       = "poc-1"
-  aws_region   = "us-east-1"
-  tags         = { env = "poc", owner = "user-name" }
+  prefix     = "poc-1"
+  aws_region = "us-east-1"
+  tags       = { env = "poc", owner = "user-name" }
 
   free_log_group_name = "/aws/route53/free.codreum.com"
   dns_alert_sns_arn   = "arn:aws:sns:us-east-1:123456789123:test-topic"
-  free_zone_id = "ZZ2190931ZUOOWM6BKTYU"
+  free_zone_id        = "ZZ2190931ZUOOWM6BKTYU"
 
-# free_zone_nxdomain_threshold = 
-# free_zone_nxdomain_alarm_period =
-# free_zone_nxdomain_eval_periods =
-# free_zone_topn_nxdomain =
-# free_zone_nxdomain_rate_threshold_pct =
-# free_zone_anomaly_band_width =
-# free_zone_anomaly_eval_periods =
+  # free_zone_nxdomain_threshold = 
+  # free_zone_nxdomain_alarm_period =
+  # free_zone_nxdomain_eval_periods =
+  # free_zone_topn_nxdomain =
+  # free_zone_nxdomain_rate_threshold_pct =
+  # free_zone_anomaly_band_width =
+  # free_zone_anomaly_eval_periods =
 }
 
