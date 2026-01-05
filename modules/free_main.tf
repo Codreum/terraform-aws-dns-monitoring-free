@@ -1163,12 +1163,12 @@ resource "aws_cloudwatch_dashboard" "vpc_dns_dashboard" {
 }
 
 locals {
-  ops_dash_name = "${var.prefix}-${local.product_code}-dns-ops"
+  ops_dash_name  = "${var.prefix}-${local.product_code}-dns-ops"
   zone_dash_name = local.has_zone ? "${var.prefix}-${local.product_code}-zone-${replace(local.free_zone_name, ".", "-")}" : null
   vpc_dash_name  = local.has_vpc ? "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}" : null
-  ops_dash_url  = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.ops_dash_name}"
-  zone_dash_url = local.has_zone ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.zone_dash_name}" : null
-  vpc_dash_url  = local.has_vpc ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.vpc_dash_name}" : null
+  ops_dash_url   = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.ops_dash_name}"
+  zone_dash_url  = local.has_zone ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.zone_dash_name}" : null
+  vpc_dash_url   = local.has_vpc ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.vpc_dash_name}" : null
   ops_alarm_arns = concat(
     local.has_zone ? [
       aws_cloudwatch_metric_alarm.zone_nxdomain_alarm[0].arn,
