@@ -1,0 +1,17 @@
+repos:
+  - repo: local
+    hooks:
+      - id: terraform-docs
+        name: terraform-docs (inject modules/README.md)
+        language: system
+        entry: powershell
+        args:
+          - -NoProfile
+          - -ExecutionPolicy
+          - Bypass
+          - -Command
+          - >
+            if (Test-Path "modules") { Set-Location "modules" };
+            terraform-docs markdown table --output-file README.md --output-mode inject .
+        pass_filenames: false
+        files: ^modules/
