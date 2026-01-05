@@ -9,8 +9,8 @@ Detect DNS misconfigurations fast by alerting on **NXDOMAIN spikes** using Cloud
 Free includes NXDOMAIN signals only. **Codreum Pro** adds broader DNS error metrics and investigation dashboards.
 
 - **Deploy:** jump to [Quickstart](#quickstart)  
-- **Website:** Codreum (link)  
-- **Upgrade:** Codreum DNS Monitoring Pro (link)
+- **Website:** https://www.codreum.com  
+- **Upgrade:** https://www.codreum.com/products.html#zone
 
 ## Why NXDOMAIN matters
 NXDOMAIN spikes often indicate:
@@ -78,7 +78,7 @@ This module:
 
 ## Prerequisites
 
-1. Terraform >= 1.7
+1. Terraform >= 1.14
 2. AWS provider >= 6.2
 3. CloudWatch Logs group already receiving DNS logs:
   - Zone mode: Route 53 hosted zone query logs (CLF-like) (fields include hosted_zone_id, rcode, qname, etc.)
@@ -246,7 +246,7 @@ Codreum Pro adds:
 5. Multi-zone / multi-vpc support
 6. Optional prebuilt alerting integrations (email / Slack / SMS) via SNS setup
 
-Learn more: Codreum DNS Monitoring Pro (link)
+Learn more: https://www.codreum.com/products.html#zone
 
 ## Costs (AWS billed)
 

@@ -739,8 +739,6 @@ resource "aws_cloudwatch_dashboard" "zone_dns_dashboard" {
           ])
         }
       },
-
-      # Top FQDN NXDOMAIN — Zone (already existed, kept as-is)
       {
         "type" : "log",
         "x" : 12, "y" : 20, "width" : 12, "height" : 8,
@@ -759,8 +757,6 @@ resource "aws_cloudwatch_dashboard" "zone_dns_dashboard" {
           ])
         }
       },
-
-      # NEW: Top source NXDOMAIN — Zone
       {
         "type" : "log",
         "x" : 0, "y" : 28, "width" : 12, "height" : 8,
@@ -1122,8 +1118,6 @@ resource "aws_cloudwatch_dashboard" "vpc_dns_dashboard" {
           ]
         }
       },
-
-      # NEW: Top source NXDOMAIN — VPC
       {
         "type" : "log",
         "x" : 0, "y" : 42, "width" : 12, "height" : 8,
@@ -1144,8 +1138,6 @@ resource "aws_cloudwatch_dashboard" "vpc_dns_dashboard" {
           )
         }
       },
-
-      # NEW: Top FQDN NXDOMAIN — VPC
       {
         "type" : "log",
         "x" : 12, "y" : 42, "width" : 12, "height" : 8,
@@ -1169,20 +1161,14 @@ resource "aws_cloudwatch_dashboard" "vpc_dns_dashboard" {
     ]
   })
 }
-# -------------------------------------------------------------------
-# Ops landing dashboard (Free: NXDOMAIN)
-# -------------------------------------------------------------------
+
 locals {
   ops_dash_name = "${var.prefix}-${local.product_code}-dns-ops"
-
   zone_dash_name = local.has_zone ? "${var.prefix}-${local.product_code}-zone-${replace(local.free_zone_name, ".", "-")}" : null
   vpc_dash_name  = local.has_vpc ? "${var.prefix}-${local.product_code}-vpc-${var.free_vpc_id}" : null
-
   ops_dash_url  = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.ops_dash_name}"
   zone_dash_url = local.has_zone ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.zone_dash_name}" : null
   vpc_dash_url  = local.has_vpc ? "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${local.vpc_dash_name}" : null
-
-  # Collect alarm ARNs (safe in concat context)
   ops_alarm_arns = concat(
     local.has_zone ? [
       aws_cloudwatch_metric_alarm.zone_nxdomain_alarm[0].arn,
@@ -1197,8 +1183,6 @@ locals {
       aws_cloudwatch_metric_alarm.vpc_nxdomain_rate_anomaly[0].arn,
     ] : []
   )
-
-  # Alarm widget (0 or 1), built via null+filter to avoid conditional type errors
   ops_alarm_widgets = [
     for w in [
       length(local.ops_alarm_arns) > 0 ? {
@@ -1214,8 +1198,6 @@ locals {
       } : null
     ] : w if w != null
   ]
-
-  # Zone widgets (0 or 2)
   zone_widgets = [
     for w in [
       local.has_zone ? {
@@ -1257,8 +1239,6 @@ locals {
       } : null
     ] : w if w != null
   ]
-
-  # VPC widgets (0 or 2)
   vpc_widgets = [
     for w in [
       local.has_vpc ? {
@@ -1278,7 +1258,6 @@ locals {
           ]
         }
       } : null,
-
       local.has_vpc ? {
         type   = "metric"
         x      = 12
