@@ -7,7 +7,7 @@ Thanks for your interest in contributing to **terraform-aws-dns-monitoring-free*
 - For **Pro/Paid** offerings, please refer to Codreum support/SLA channels.
 
 ## Development prerequisites
-- Terraform: recommended `>= 1.7.0` (or follow repo / example constraints)
+- Terraform: recommended `>= 1.14.0` (or follow repo / example constraints)
 - AWS credentials if you plan to run real plans/applies (not required for fmt/validate)
 
 ## Local checks (required before PR)
