@@ -60,7 +60,7 @@ Your AWS identity must be able to create/read:
 ## Module source (important)
 
 This repository exposes the Terraform module from the **`modules/`** subdirectory.  
-When sourcing from GitHub, include `//modules`:
+Replace the existing module source "../../modules" with "github.com/Codreum/terraform-aws-dns-monitoring-free//modules?ref=v0.1.0"
 
 ```hcl
 module "dnsci" {

@@ -24,7 +24,7 @@ module "dnsci" {
 
   free_log_group_name = "/aws/route53/free.codreum.com"
   dns_alert_sns_arn   = "arn:aws:sns:us-east-1:123456789123:test-topic"
-  free_zone_id        = "ZZ2190931ZUOOWM6BKTYU"
+  free_zone_id        = "Z06819422VITX178DF26Z"
   free_vpc_id         = "vpc-06926d7bfefae789c"
 
   # free_zone_nxdomain_threshold = 
