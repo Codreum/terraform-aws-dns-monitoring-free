@@ -1,22 +1,21 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
   "extends": ["config:recommended"],
   "dependencyDashboard": true,
-  "labels": ["dependencies"],
+  "labels": ["dependencies", "terraform"],
   "timezone": "Asia/Kuala_Lumpur",
 
+  // Dependabot manages GitHub Actions. Renovate manages Terraform only.
+  "enabledManagers": ["terraform"],
+
   "includePaths": [
-    ".github/workflows/**",
     "modules/**",
     "example/**",
     "examples/**"
   ],
 
   "packageRules": [
-    {
-      "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions"
-    },
     {
       "matchManagers": ["terraform"],
       "groupName": "Terraform (providers & modules)"
