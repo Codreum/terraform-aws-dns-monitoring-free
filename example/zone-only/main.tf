@@ -15,7 +15,7 @@ provider "aws" {
 }
 
 
-module "dnsci" {
+module "codreum_dns_free" {
   source = "../../modules"
 
   prefix     = "poc-1"

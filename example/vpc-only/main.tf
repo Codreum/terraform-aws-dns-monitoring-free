@@ -14,7 +14,7 @@ provider "aws" {
   region = "us-east-1"
 }
 
-module "dnsci" {
+module "codreum_dns_free" {
   source = "../../modules"
 
   prefix     = "poc-1"

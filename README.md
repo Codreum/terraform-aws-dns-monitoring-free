@@ -86,10 +86,15 @@ This module uses **your real DNS query logs** inside AWS:
 | NXDOMAIN static alarms + anomaly detection | ✅ | ✅ |
 | NXDOMAIN Contributor Insights (Top-N rules) | ✅ | ✅ |
 | NXDOMAIN dashboards (Zone/VPC baseline) | ✅ | ✅ |
-| Additional DNS metrics + CI packs (SERVFAIL/REFUSED/etc.) | ❌ | ✅ |
+| Additional DNS metrics + Contributor Insights packs (SERVFAIL/REFUSED/etc.) | ❌ | ✅ |
+| Per zone metrics/Alarm/CI toggle | ❌ | ✅ |
 | Per-zone metric dashboards (beyond NXDOMAIN) | ❌ | ✅ |
+| Per-zone Top-N dashboards (expanded) | ❌ | ✅ |
+| Built-in SNS wiring presets (Email / Slack / SMS) | ❌ | ✅ |
+| Log group management | ❌ | ✅ |
 | Multiple zone/VPC IDs in one deployment | ❌ | ✅ |
-| Advanced dashboards (Ops/Investigation/Forensics) | ❌ | ✅ |
+| Advanced dashboards (Ops landing / Investigation / Forensics) | ❌ | ✅ |
+| Licensing & enforcement | ❌ | ✅ |
 | Support / SLA | ❌ | ✅ |
 
 ---
