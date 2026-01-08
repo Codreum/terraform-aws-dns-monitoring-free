@@ -1,146 +1,159 @@
-## Codreum DNS Monitoring (Free)
+<p align="center">
+  <a href="https://www.codreum.com">
+    <img src="docs/brand/logo.png" alt="Codreum" width="200" />
+  </a>
+</p>
 
-Detect DNS misconfigurations fast by alerting on **NXDOMAIN spikes** using CloudWatch + Terraform.
+<p align="center">
+  <a href="https://www.codreum.com">Website</a> •
+  <a href="https://www.codreum.com/products.html#zone">Upgrade</a> •
+  <a href="#quickstart">Quickstart</a>
+</p>
+
+# Codreum DNS Monitoring (Free)
+
+Detect DNS misconfigurations fast by alerting on **NXDOMAIN spikes** using **AWS CloudWatch + Terraform**.
 
 ✅ Dashboards + alarms + anomaly detection  
-✅ Works with **Route 53 hosted zone logs** + **Resolver query logs (VPC)**  
+✅ Works with **Route 53 hosted zone query logs** + **Resolver query logs (VPC)**  
 ✅ Top-N triage views (domain / qtype / edge / source)
 
-Free includes NXDOMAIN signals only. **Codreum Pro** adds broader DNS error metrics and investigation dashboards.
+Free includes **NXDOMAIN signals only**. **Codreum Pro** adds broader DNS error metrics and investigation dashboards.
 
 - **Deploy:** jump to [Quickstart](#quickstart)  
 - **Website:** https://www.codreum.com  
-- **Upgrade:** https://www.codreum.com/products.html#zone
+- **Upgrade:** https://www.codreum.com/products.html#zone  
+
+---
 
 ## Why NXDOMAIN matters
-NXDOMAIN spikes often indicate:
-- broken deployments (wrong domain, missing records)
-- misconfigured clients / endpoints
-- malware or beaconing attempts
+
+NXDOMAIN means “this name does not exist.” A spike is rarely random — it’s usually a signal that **something changed**.
+
+Common causes:
+- broken deployments (wrong domain, missing records, bad service discovery)
+- misconfigured clients / endpoints (typos, outdated configs, DNS suffix issues)
+- malware / beaconing attempts (random subdomains, DGA patterns)
 - expired records or incorrect resolver paths
 
-This module helps you detect these quickly and investigate using Top-N breakdowns.
+Why it’s valuable:
+- **Fastest indicator of DNS regressions** (before app errors explode)
+- Helps pinpoint **what** is failing and **who** is generating it (Top-N)
+- Works for both **public hosted zones** and **private/VPC resolver** DNS
 
+---
 
+## Why AWS CloudWatch (in-account) instead of external DNS monitoring?
+
+External checkers are useful, but they often miss the failures you actually care about:
+- External monitors can only test **public DNS** and a small set of resolvers.
+- They can’t see **your internal resolver traffic** (VPC Resolver logs).
+- They typically miss **client-specific failures** and “partial outages” (only some subnets, only some clients, only some edges).
+
+This module uses **your real DNS query logs** inside AWS:
+- captures failures from **real production clients**
+- supports **private/internal DNS** (VPC resolver queries)
+- triages by **top offending domain / qtype / edge / source IP**
+- avoids shipping DNS logs to third parties
+
+> Privacy note: this module does **not** send DNS logs to Codreum. Everything stays inside your AWS account.
+
+---
 
 ## What you get (Free)
 
 ✅ Included:
-
-1. NXDOMAIN count alarm (Zone + VPC)
-2. NXDOMAIN rate (%) alarm (Zone + VPC)
-3. Anomaly detection alarms (count + rate)
+1. NXDOMAIN **count** alarm (Zone + VPC)
+2. NXDOMAIN **rate (%)** alarm (Zone + VPC)
+3. **Anomaly detection** alarms (count + rate)
 4. CloudWatch dashboards:
    - Zone dashboard
    - VPC dashboard
    - Ops landing dashboard
-5. Top-N triage views
-- Zone: Top NXDOMAIN by domain/qtype/edge/source
-- VPC: Top NXDOMAIN by qname/source
-6. SNS integration: alarms publish to your provided SNS topic (dns_alert_sns_arn)
-
+5. Top-N triage views  
+   - Zone: Top NXDOMAIN by domain/qtype/edge/source  
+   - VPC: Top NXDOMAIN by qname/source
+6. SNS integration: alarms publish to your provided SNS topic (`dns_alert_sns_arn`)
 
 🚫 Not included (Free):
 1. Additional DNS error metrics (SERVFAIL/REFUSED/etc.)
 2. Expanded Contributor Insights packs and dashboards beyond NXDOMAIN
 3. Licensing, enforcement, premium support / SLA (Pro)
-4. Log group management
-(Available in Codreum Pro.)
+4. Log group management (Pro)
 
 | Capability | Free | Pro |
 |---|:---:|:---:|
 | NXDOMAIN static alarms + anomaly detection | ✅ | ✅ |
 | NXDOMAIN Contributor Insights (Top-N rules) | ✅ | ✅ |
 | NXDOMAIN dashboards (Zone/VPC baseline) | ✅ | ✅ |
-| Additional DNS metrics + Contributor Insights packs (SERVFAIL/REFUSED/etc.) | ❌ | ✅ |
-| Per zone metrics/Alarm/CI toggle | ❌ | ✅ |
+| Additional DNS metrics + CI packs (SERVFAIL/REFUSED/etc.) | ❌ | ✅ |
 | Per-zone metric dashboards (beyond NXDOMAIN) | ❌ | ✅ |
-| Per-zone Top-N dashboards (expanded) | ❌ | ✅ |
-| Built-in SNS wiring presets (Email / Slack / SMS) | ❌ | ✅ |
-| Log group management | ❌ | ✅ |
 | Multiple zone/VPC IDs in one deployment | ❌ | ✅ |
-| Advanced dashboards (Ops landing / Investigation / Forensics) | ❌ | ✅ |
-| Licensing & enforcement | ❌ | ✅ |
+| Advanced dashboards (Ops/Investigation/Forensics) | ❌ | ✅ |
 | Support / SLA | ❌ | ✅ |
 
+---
 
 ## How it works (simple architecture)
 
 This module:
-1. reads from an existing CloudWatch Logs group containing DNS logs (free_log_group_name)
-2  creates:
+1. reads from an existing CloudWatch Logs group containing DNS logs (`free_log_group_name`)
+2. creates:
    - Log metric filters → custom metrics in `Codreum/DNSCI`
    - CloudWatch alarms (static + rate % + anomaly)
    - Contributor Insights rules + Logs Insights widgets (Top-N triage)
    - Dashboards (zone, vpc, ops landing)
-3. sends alarm notifications to your SNS topic (dns_alert_sns_arn)
+3. sends alarm notifications to your SNS topic (`dns_alert_sns_arn`)
 
+---
 
 ## Prerequisites
 
 1. Terraform >= 1.14
 2. AWS provider >= 6.2
-3. CloudWatch Logs group already receiving DNS logs:
-  - Zone mode: Route 53 hosted zone query logs (CLF-like) (fields include hosted_zone_id, rcode, qname, etc.)
-  - VPC mode: JSON resolver query logs (fields include vpc_id, rcode, srcaddr, qname, etc.)
+3. A CloudWatch Logs group already receiving DNS logs:
+   - **Zone mode:** Route 53 hosted zone query logs (CLF-like fields include `hosted_zone_id`, `rcode`, `qname`, etc.)
+   - **VPC mode:** JSON resolver query logs (fields include `vpc_id`, `rcode`, `srcaddr`, `query_name` / `qname`, etc.)
 
+---
 
 ## Configuration
 
-1. Required
-  - prefix
-  - aws_region
-  - product_code
-  - free_log_group_name
-  - dns_alert_sns_arn
-  - Provide at least one:
-     - free_zone_id (enables zone alarms/dashboards/widgets)
-     - free_vpc_id (enables vpc alarms/dashboards/widgets)
+Required:
+- `prefix`
+- `aws_region`
+- `free_log_group_name`
+- `dns_alert_sns_arn`
+- Provide at least one:
+  - `free_zone_id` (enables zone alarms/dashboards/widgets)
+  - `free_vpc_id` (enables vpc alarms/dashboards/widgets)
 
-You can enable zone monitoring, VPC monitoring, or both in the same deployment.
+You can enable zone monitoring, VPC monitoring, or both.
 
-## Inputs (high level)
-
-| Input | Required | Description |
-|---|:---:|---|
-| `free_log_group_name` | ✅ | CloudWatch Logs group that already receives DNS logs |
-| `dns_alert_sns_arn` | ✅ | SNS topic ARN for alarm notifications |
-| `free_zone_id` | ✅* | Enable hosted zone mode (choose zone or VPC or both) |
-| `free_vpc_id` | ✅* | Enable VPC mode (choose zone or VPC or both) |
-
-
-2. Optional :
-  - Threshold knobs (count/rate, period, eval periods)
-  - Anomaly knobs (*_anomaly_band_width, *_anomaly_eval_periods)
-
-3. Defaults
-This module ships with sane defaults:
-  - Zone NXDOMAIN threshold: 100 / period
-  - VPC NXDOMAIN threshold: 200 / period
-  - NXDOMAIN rate threshold: 10%
-(Override via variables if needed.)
+---
 
 ## Quickstart
-1. Ensure DNS query logs are flowing into CloudWatch Logs:
-   - Hosted zone query logs (CLF-like)
-   - Resolver query logs (JSON)
-   
-2. Copy paste this into your main.tf 
+
+1) Ensure DNS query logs are flowing into CloudWatch Logs:
+- Hosted zone query logs (CLF-like)
+- Resolver query logs (JSON)
+
+2) Copy/paste into `main.tf`:
 
 ```hcl
 module "codreum_dns_free" {
   source = "github.com/Codreum/terraform-aws-dns-monitoring-free//modules?ref=v0.1.0"
 
-  prefix             = "acme-dev"
-  aws_region         = "us-east-1"
-  product_code       = "dnscif"
-  free_log_group_name = "/aws/route53/resolver-query-logs"  # must match your cloudwatch log group name
-  dns_alert_sns_arn   = "arn:aws:sns:us-east-1:123456789012:alerts"  # change to your own SNS ARN
-  free_vpc_id  = "vpc-0123456789abcdef0"    # change to the vpc id you want to monitor
-  free_zone_id = "Z123EXAMPLE"  # change to the zone id you want to monitor
+  prefix              = "acme-dev"
+  aws_region          = "us-east-1"
+  free_log_group_name = "/aws/route53/resolver-query-logs"  # must match your CloudWatch log group name
+  dns_alert_sns_arn   = "arn:aws:sns:us-east-1:123456789012:alerts" # change to your SNS ARN
+
+  # Enable one or both:
+  free_vpc_id  = "vpc-0123456789abcdef0" # optional
+  free_zone_id = "Z123EXAMPLE"           # optional
 }
 ```
-
 You can also copy the main.tf file from example folder, and make the minimal edit
 - replace  module source with "github.com/Codreum/terraform-aws-dns-monitoring-free//modules?ref=v0.1.0"
 - Change free_log_group_name , dns_alert_sns_arn, free_vpc_id or/and free_zone_id to your own resource
@@ -148,23 +161,23 @@ You can also copy the main.tf file from example folder, and make the minimal edi
 3. (optional) this module exports dashboard URLs, alarm ARNs, and metric names via Terraform outputs. If you want the output, paste this code too into your own main.tf
 ```hcl
 output "dns_free_enabled" {
-  value = module.dnsci.enabled
+  value = module.codreum_dns_free.enabled
 }
 
 output "dns_free_dashboards" {
-  value = module.dnsci.dashboards
+  value = module.codreum_dns_free.dashboards
 }
 
 output "dns_free_alarms" {
-  value = module.dnsci.alarms
+  value = module.codreum_dns_free.alarms
 }
 
 output "dns_free_metrics" {
-  value = module.dnsci.metrics
+  value = module.codreum_dns_free.metrics
 }
 
 output "dns_free_ci_rules" {
-  value = module.dnsci.contributor_insights_rules
+  value = module.codreum_dns_free.contributor_insights_rules
 }
 ```
 

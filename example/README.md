@@ -63,7 +63,7 @@ This repository exposes the Terraform module from the **`modules/`** subdirector
 Replace the existing module source "../../modules" with "github.com/Codreum/terraform-aws-dns-monitoring-free//modules?ref=v0.1.0"
 
 ```hcl
-module "dnsci" {
+module "codreum_dns_free" {
   source = "github.com/Codreum/terraform-aws-dns-monitoring-free//modules?ref=v0.1.0"
 }
 ```
