@@ -4,10 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 18 * * *"  # 02:00 Malaysia time daily
+  workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write
+concurrency:
+  group: ci-terraform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   terraform-fmt:
@@ -83,6 +88,11 @@ jobs:
   terraform-plan-examples:
     name: terraform plan (examples)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+
     needs:
       - terraform-fmt
       - terraform-validate-modules
@@ -90,15 +100,19 @@ jobs:
 
     # Don't run AWS-authenticated job for fork PRs
     if: |
-      (
-        github.event_name == 'pull_request'
-        && github.event.pull_request.head.repo.full_name == github.repository
-        && github.event.pull_request.user.login != 'dependabot[bot]'
-      )
-      || (
-        github.event_name == 'push'
-        && github.actor != 'dependabot[bot]'
-        && github.actor != 'dependabot'
+      github.repository == 'Codreum/terraform-aws-dns-monitoring-free'
+      && github.event_name != 'schedule'
+      && (
+        (
+          github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && github.event.pull_request.user.login != 'dependabot[bot]'
+        )
+        || (
+          github.event_name == 'push'
+          && github.actor != 'dependabot[bot]'
+          && github.actor != 'dependabot'
+        )
       )
     strategy:
       fail-fast: false
@@ -167,6 +181,15 @@ jobs:
     name: terraform validate (modules) (latest)
     runs-on: ubuntu-latest
     needs: terraform-fmt
+
+    if: |
+      github.repository == 'Codreum/terraform-aws-dns-monitoring-free'
+      && (
+        github.event_name == 'schedule'
+        || github.event_name == 'workflow_dispatch'
+        || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      )
+
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -190,6 +213,13 @@ jobs:
     name: terraform validate (examples) (latest)
     runs-on: ubuntu-latest
     needs: terraform-fmt
+    if: |
+      github.repository == 'Codreum/terraform-aws-dns-monitoring-free'
+      && (
+        github.event_name == 'schedule'
+        || github.event_name == 'workflow_dispatch'
+        || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      )
 
     strategy:
       fail-fast: false
@@ -221,6 +251,11 @@ jobs:
   terraform-plan-examples-latest:
     name: terraform plan (examples) (latest)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+
     needs:
       - terraform-fmt
       - terraform-validate-modules-latest
@@ -228,15 +263,13 @@ jobs:
 
     # Don't run AWS-authenticated job for fork PR
     if: |
-      (
-        github.event_name == 'pull_request'
-        && github.event.pull_request.head.repo.full_name == github.repository
-        && github.event.pull_request.user.login != 'dependabot[bot]'
-      )
-      || (
-        github.event_name == 'push'
-        && github.actor != 'dependabot[bot]'
-        && github.actor != 'dependabot'
+      github.repository == 'Codreum/terraform-aws-dns-monitoring-free'
+      && github.actor != 'dependabot[bot]'
+      && github.actor != 'dependabot'
+      && (
+        github.event_name == 'schedule'
+        || github.event_name == 'workflow_dispatch'
+        || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       )
     strategy:
       fail-fast: false
@@ -277,5 +310,173 @@ jobs:
           TF_VAR_prefix: ${{ vars.TF_VAR_prefix }}
           TF_VAR_free_vpc_id: ${{ vars.TF_VAR_free_vpc_id }}
         run: terraform plan -lock=false -input=false -refresh=false
+
+
+  terraform-apply-destroy-smoke:
+    name: terraform apply + destroy (smoke)
+    environment: aws-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+
+    needs:
+      - terraform-fmt
+      - terraform-validate-modules
+      - terraform-validate-examples
+      - terraform-plan-examples
+
+    # IMPORTANT: do NOT apply on PRs. Only run on push to main.
+    if: |
+      github.repository == 'Codreum/terraform-aws-dns-monitoring-free'
+      && github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && github.actor != 'dependabot[bot]'
+      && github.actor != 'dependabot'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          # Pick ONE first to reduce blast radius; later you can add more
+          - example/both-zone-vpc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: "1.14.0"
+          terraform_wrapper: false
+
+      - name: Terraform init (no backend)
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -backend=false
+
+      - name: Terraform apply
+        working-directory: ${{ matrix.dir }}
+        env:
+          TF_IN_AUTOMATION: "true"
+          TF_VAR_aws_region: ${{ vars.TF_VAR_aws_region }}
+          TF_VAR_free_zone_id: ${{ vars.TF_VAR_free_zone_id }}
+          TF_VAR_free_log_group_name: ${{ vars.TF_VAR_free_log_group_name }}
+          TF_VAR_dns_alert_sns_arn: ${{ vars.TF_VAR_dns_alert_sns_arn }}
+          TF_VAR_free_vpc_id: ${{ vars.TF_VAR_free_vpc_id }}
+
+          # UNIQUE per run
+          TF_VAR_prefix: ci-${{ github.run_id }}-${{ github.run_attempt }}
+        run: terraform apply -auto-approve -input=false -lock=false
+
+      # optional: small sanity check
+      - name: Terraform output
+        if: always()
+        working-directory: ${{ matrix.dir }}
+        run: terraform output -json || true
+
+      - name: Terraform destroy (always)
+        # always try to cleanup even if apply/output fails
+        if: always()
+        continue-on-error: true
+        working-directory: ${{ matrix.dir }}
+        env:
+          TF_IN_AUTOMATION: "true"
+          TF_VAR_aws_region: ${{ vars.TF_VAR_aws_region }}
+          TF_VAR_free_zone_id: ${{ vars.TF_VAR_free_zone_id }}
+          TF_VAR_free_log_group_name: ${{ vars.TF_VAR_free_log_group_name }}
+          TF_VAR_dns_alert_sns_arn: ${{ vars.TF_VAR_dns_alert_sns_arn }}
+          TF_VAR_free_vpc_id: ${{ vars.TF_VAR_free_vpc_id }}
+          TF_VAR_prefix: ci-${{ github.run_id }}-${{ github.run_attempt }}
+        run: terraform destroy -auto-approve -input=false -lock=false
+
+
+  terraform-apply-destroy-smoke-latest:
+    name: terraform apply + destroy (smoke) (latest)
+    environment: aws-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - terraform-fmt
+      - terraform-validate-modules-latest
+      - terraform-validate-examples-latest
+      - terraform-plan-examples-latest
+
+    # Only run on push to main
+    if: |
+      github.repository == 'Codreum/terraform-aws-dns-monitoring-free'
+      && github.actor != 'dependabot[bot]'
+      && github.actor != 'dependabot'
+      && (
+        github.event_name == 'schedule'
+        || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      )
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - example/both-zone-vpc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Terraform (latest)
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: latest
+          terraform_wrapper: false
+
+      - name: Terraform init (no backend)
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -backend=false
+
+      - name: Terraform apply (latest)
+        working-directory: ${{ matrix.dir }}
+        env:
+          TF_IN_AUTOMATION: "true"
+          TF_VAR_aws_region: ${{ vars.TF_VAR_aws_region }}
+          TF_VAR_free_zone_id: ${{ vars.TF_VAR_free_zone_id }}
+          TF_VAR_free_log_group_name: ${{ vars.TF_VAR_free_log_group_name }}
+          TF_VAR_dns_alert_sns_arn: ${{ vars.TF_VAR_dns_alert_sns_arn }}
+          TF_VAR_free_vpc_id: ${{ vars.TF_VAR_free_vpc_id }}
+          TF_VAR_prefix: ci-latest-${{ github.run_id }}-${{ github.run_attempt }}
+        run: terraform apply -auto-approve -input=false -lock=false
+
+      - name: Terraform output (latest)
+        if: always()
+        working-directory: ${{ matrix.dir }}
+        run: terraform output -json || true
+
+      - name: Terraform destroy (latest) (always)
+        if: always()
+        continue-on-error: true
+        working-directory: ${{ matrix.dir }}
+        env:
+          TF_IN_AUTOMATION: "true"
+          TF_VAR_aws_region: ${{ vars.TF_VAR_aws_region }}
+          TF_VAR_free_zone_id: ${{ vars.TF_VAR_free_zone_id }}
+          TF_VAR_free_log_group_name: ${{ vars.TF_VAR_free_log_group_name }}
+          TF_VAR_dns_alert_sns_arn: ${{ vars.TF_VAR_dns_alert_sns_arn }}
+          TF_VAR_free_vpc_id: ${{ vars.TF_VAR_free_vpc_id }}
+          TF_VAR_prefix: ci-latest-${{ github.run_id }}-${{ github.run_attempt }}
+        run: terraform destroy -auto-approve -input=false -lock=false
 
 
