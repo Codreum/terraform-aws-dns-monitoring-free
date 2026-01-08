@@ -134,53 +134,30 @@ Maintainers have the right and responsibility to remove, edit, or reject comment
 
 ## Enforcement Guidelines
 
-
-
-The project maintainers will follow these Community Impact Guidelines when determining consequences:
-
-
+Project maintainers will follow these Community Impact Guidelines when determining consequences. Maintainers may skip steps or apply a stronger response depending on severity or risk of harm.
 
 ### 1. Correction
-
-\*\*Community Impact:\*\* Use of inappropriate language or other behavior deemed unprofessional or unwelcome.  
-
-\*\*Consequence:\*\* A private, written warning providing clarity around expected behavior.
-
-
+**Community Impact:** Use of inappropriate language or other behavior deemed unprofessional or unwelcome.  
+**Consequence:** A private, written warning providing clarity around expected behavior.
 
 ### 2. Warning
-
-\*\*Community Impact:\*\* A violation through a single incident or series of actions.  
-
-\*\*Consequence:\*\* A written warning with consequences for continued behavior. No interaction with involved parties for a specified period may be required.
-
-
+**Community Impact:** A violation through a single incident or series of actions.  
+**Consequence:** A written warning with consequences for continued behavior. No interaction with involved parties for a specified period may be required.
 
 ### 3. Temporary Ban
-
-\*\*Community Impact:\*\* Serious or repeated violations, including sustained disruptive behavior.  
-
-\*\*Consequence:\*\* Temporary ban from contributing or interacting for a specified period.
-
-
+**Community Impact:** Serious or repeated violations, including sustained disruptive behavior.  
+**Consequence:** Temporary ban from contributing or interacting for a specified period.
 
 ### 4. Permanent Ban
+**Community Impact:** Demonstrating a pattern of violations or engaging in severe harassment, threats, or harm.  
+**Consequence:** Permanent removal from the community and project spaces.
 
-\*\*Community Impact:\*\* Demonstrating a pattern of violations or engaging in severe harassment, threats, or harm.  
-
-\*\*Consequence:\*\* Permanent removal from the community and project spaces.
-
-
+## Reporting & Enforcement
+To report a Code of Conduct issue, contact: **[ADD CONTACT EMAIL/FORM HERE]**.  
+Reports will be reviewed by maintainers and handled as confidentially as possible.
 
 ## Attribution
-
-
-
-This Code of Conduct is adapted from the \*\*Contributor Covenant, version 2.1\*\*.  
-
+This Code of Conduct is adapted from the **Contributor Covenant, version 2.1**.  
 For more information, see the Contributor Covenant website.
-
-
-
 
 
