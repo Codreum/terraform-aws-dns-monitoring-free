@@ -34,4 +34,10 @@ deny[msg] {
 # Warn: alarms should set treat_missing_data explicitly
 ################################################################################
 warn[msg] {
-  rc := resource
+  rc := resource_changes[_]
+  rc.type == "aws_cloudwatch_metric_alarm"
+  after := rc.change.after
+
+  not after.treat_missing_data
+  msg := sprintf("%s: aws_cloudwatch_metric_alarm should set treat_missing_data explicitly", [rc.address])
+}
