@@ -22,7 +22,7 @@ module "codreum_dns_NX" {
   tags       = { env = "poc", owner = "user-name" }
 
   NX_log_group_name = "/aws/route53/free.codreum.com"
-  dns_alert_sns_arn   = "arn:aws:sns:us-east-1:123456789123:test-topic"
+  dns_alert_sns_arn = "arn:aws:sns:us-east-1:123456789123:test-topic"
   NX_vpc_id         = "vpc-06926d7bfefae789c"
 
   # NX_vpc_nxdomain_threshold =

@@ -9,7 +9,7 @@ data "aws_route53_zone" "NX_zone" {
 
 locals {
   NX_zone_name = var.NX_zone_id != null ? trimsuffix(data.aws_route53_zone.NX_zone[0].name, ".") : null
-  product_code   = "nxd"
+  product_code = "nxd"
 }
 
 locals {
